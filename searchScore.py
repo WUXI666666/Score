@@ -275,6 +275,5 @@ def main():
     # 保存更新后的数据库（如果有新增内容）
     image_db.save(database_path)
 
-# 示例调用
 if __name__ == "__main__":
     main()
