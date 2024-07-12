@@ -35,9 +35,9 @@ def create_database(image_paths, database_path, model_note, model_region, note_i
     image_db.save(database_path)
     print(f"Database saved to {database_path}")
 
-# 示例调用
+
 if __name__ == "__main__":
-    image_paths = './db'  # 添加你需要处理的图像路径
+    image_paths = './db'  
     database_path = './music_db.pkl'
     create_database(image_paths, database_path, model_note, model_region)
 
