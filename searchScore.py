@@ -226,7 +226,7 @@ class ImageDatabase:
             if q_chord_tuple in self.db:
                 for image_id, region_idx, chord_idx in self.db[q_chord_tuple]:
                     # print(f"{image_id}\n")
-                    if abs(q_region_idx - region_idx) <= tolerance and abs(q_chord_idx - chord_idx) <=tolerance:
+                    if abs(q_region_idx - region_idx) <= tolerance and abs(q_chord_idx - chord_idx) ==0:
                         matches[image_id][region_idx] += 1
         return matches
 
