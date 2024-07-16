@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+import glob
 import pickle
 import torch
 import cv2
@@ -136,9 +138,9 @@ def detect_and_draw_notes(img_path, model_note, model_region, note_input_size=32
         #     note[3] += y1
         #     # print(f"X:{note[0]}{note[2]},Y:{note[1]}{note[3]},region:{region}")
         #     all_notes.append(note)
-    cv2.imshow('Image', img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('Image', img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     return all_notes,total_cord
 
 # 分离左右手音符
@@ -240,40 +242,94 @@ class ImageDatabase:
             self.db, self.track_info, self.inverted_index = pickle.load(f)
 
 
-def main():
-    img_path = './test3.jpg'
-    database_path = './music_db.pkl'
-
+#多线程处理
+def process_image(img_path):
     # 检测和绘制音符，并返回所有和弦的二进制表示
-    all_chords,totalcord = detect_and_draw_notes(img_path, model_note, model_region)
-    
-    # 加载数据库
+    print(f"process{img_path}\n")
+    all_chords, totalcord = detect_and_draw_notes(img_path, model_note, model_region)
+    return img_path, all_chords, totalcord
+#引入多线程处理
+def main():
+    search_folder = './searchjpg'
+    database_path = './music_db.pkl'
+    result_file = './result.txt'
+
     image_db = ImageDatabase()
     if os.path.exists(database_path):
         image_db.load(database_path)
     else:
         print(f"Error: Database file {database_path} does not exist.")
         return
-    
-    # 在数据库中搜索
-    matches = image_db.search_image(all_chords,5)
-    ratios={}
-    for img_id,regions_id in matches.items():
-        match_cord=sum(regions_id.values())
-        ratios[img_id]=match_cord/totalcord
-    # 获取匹配比率最高的前三个曲目
-    top_matches = sorted(ratios.items(), key=lambda x: x[1], reverse=True)[:3]
-    top_track_names = [image_db.track_info[image_id] for image_id, _ in top_matches]
-    print("匹配前三的曲目是:\n")
-    
-    if top_track_names:
-        for id,ratio in top_matches:
-            print(f"匹配的曲目:{image_db.track_info[id]}\t\t匹配比率:{ratio}\n")
-    else:
-        print("未找到匹配的曲目。")
-        
-    # 保存更新后的数据库（如果有新增内容）
-    image_db.save(database_path)
+
+    img_paths = glob.glob(os.path.join(search_folder, '*.jpg'))
+
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(process_image, img_paths))
+
+    with open(result_file, 'w') as f:
+        for img_path, all_chords, totalcord in results:
+            matches = image_db.search_image(all_chords, tolerance=0)
+            ratios = {}
+            for img_id, regions_id in matches.items():
+                match_cord = sum(regions_id.values())
+                ratios[img_id] = match_cord / totalcord
+
+            top_matches = sorted(ratios.items(), key=lambda x: x[1], reverse=True)[:3]
+            top_track_names = [image_db.track_info[image_id] for image_id, _ in top_matches]
+
+            if top_track_names:
+                f.write(f"Image: {os.path.basename(img_path)}\n")
+                for id, ratio in top_matches:
+                    f.write(f"ID: {image_db.track_info[id]}\t\tRatio: {ratio:.2f}\n")
+                f.write("\n")
+            else:
+                f.write(f"Image: {os.path.basename(img_path)}\nNot found.\n\n")
+            
+    print(f"Results saved to {result_file}")
 
 if __name__ == "__main__":
     main()
+
+# def main():
+#     search_folder = './searchjpg'  # 搜索文件夹
+#     database_path = './music_db.pkl'
+#     result_file = './result.txt'
+
+#     # 加载数据库
+#     image_db = ImageDatabase()
+#     if os.path.exists(database_path):
+#         image_db.load(database_path)
+#     else:
+#         print(f"Error: Database file {database_path} does not exist.")
+#         return
+
+#     with open(result_file, 'w') as f:
+#         for img_path in glob.glob(os.path.join(search_folder, '*.jpg')):
+#             print(f"Processing {img_path}...")
+
+#             # 检测和绘制音符，并返回所有和弦的二进制表示
+#             all_chords, totalcord = detect_and_draw_notes(img_path, model_note, model_region)
+
+#             # 在数据库中搜索
+#             matches = image_db.search_image(all_chords, tolerance=0)
+#             ratios = {}
+#             for img_id, regions_id in matches.items():
+#                 match_cord = sum(regions_id.values())
+#                 ratios[img_id] = match_cord / totalcord
+            
+#             # 获取匹配比率最高的前三个曲目
+#             top_matches = sorted(ratios.items(), key=lambda x: x[1], reverse=True)[:3]
+#             top_track_names = [image_db.track_info[image_id] for image_id, _ in top_matches]
+            
+#             if top_track_names:
+#                 f.write(f"Image: {os.path.basename(img_path)}\n")
+#                 for id, ratio in top_matches:
+#                     f.write(f"Name: {image_db.track_info[id]}\t\tRatio: {ratio:.2f}\n")
+#                 f.write("\n")
+#             else:
+#                 f.write(f"Image: {os.path.basename(img_path)}\n未找到匹配的曲目。\n\n")
+            
+#     print(f"Results saved to {result_file}")
+
+# if __name__ == "__main__":
+#     main()

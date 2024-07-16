@@ -14,6 +14,7 @@ numpy：用于科学计算
 开发工具：Visual Studio Code
 版本控制：Git
 
+searchjpg为需要搜索的乐谱，db为数据库中存储的乐谱，结果写入result.txt
 基本思路
 左右手分离
 和弦音符重组
